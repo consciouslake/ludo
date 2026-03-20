@@ -177,6 +177,24 @@ export default function App() {
   const [showInfo, setShowInfo] = useState(false);
   const [hoveredPlayerOnBoard, setHoveredPlayerOnBoard] = useState<number | null>(null);
   const [selectedMalPlayer, setSelectedMalPlayer] = useState<number | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile) {
+        const availableWidth = window.innerWidth - 32;
+        setScale(Math.min(1, availableWidth / 616));
+      } else {
+        const availableHeight = window.innerHeight - 64;
+        const availableWidth = window.innerWidth - 450 - 64;
+        setScale(Math.min(1, availableHeight / 616, availableWidth / 616));
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleRestart = useCallback(() => {
     if (window.confirm('Are you sure you want to restart the game? All progress will be lost.')) {
@@ -309,136 +327,140 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-100 flex font-sans">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-slate-100 flex flex-col lg:flex-row font-sans overflow-x-hidden overflow-y-auto w-full">
       {/* Left Side - Board */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-slate-200">
-        <div className="relative shadow-2xl rounded-xl border-8 border-slate-800 bg-white box-content" style={{ width: '600px', height: '600px' }}>
-          <div className="w-full h-full rounded-[4px] overflow-hidden" style={{ display: 'grid', gridTemplateColumns: 'repeat(15, 1fr)', gridTemplateRows: 'repeat(15, 1fr)' }}>
-            {Array.from({ length: 225 }).map((_, i) => {
-              const r = Math.floor(i / 15);
-              const c = i % 15;
-              return (
-                <div key={i} className={getCellClass(r, c)}>
-                  {isStar(r, c) && <Star className="w-5 h-5 text-slate-400 opacity-50" />}
-                </div>
-              )
-            })}
-          </div>
+      <div className="w-full lg:flex-1 relative flex items-center justify-center p-4 sm:p-8 bg-slate-200 lg:h-screen lg:overflow-hidden min-h-[400px] shrink-0 border-b lg:border-none border-slate-300">
+        <div style={{ width: 616 * scale, height: 616 * scale }} className="relative transition-all duration-300 shrink-0">
+          <div className="absolute top-0 left-0 origin-top-left transition-transform duration-300" style={{ transform: `scale(${scale})` }}>
+            <div className="relative shadow-2xl rounded-xl border-8 border-slate-800 bg-white box-content" style={{ width: '600px', height: '600px' }}>
+              <div className="w-full h-full rounded-[4px] overflow-hidden" style={{ display: 'grid', gridTemplateColumns: 'repeat(15, 1fr)', gridTemplateRows: 'repeat(15, 1fr)' }}>
+                {Array.from({ length: 225 }).map((_, i) => {
+                  const r = Math.floor(i / 15);
+                  const c = i % 15;
+                  return (
+                    <div key={i} className={getCellClass(r, c)}>
+                      {isStar(r, c) && <Star className="w-5 h-5 text-slate-400 opacity-50" />}
+                    </div>
+                  )
+                })}
+              </div>
 
-          {/* Center Logo */}
-          <div className="absolute w-[120px] h-[120px] bg-slate-800 flex flex-col items-center justify-center text-white p-2 shadow-inner" style={{ top: 240, left: 240 }}>
-            <Trophy className="w-8 h-8 text-yellow-400 mb-1" />
-            <div className="text-[10px] font-bold text-center leading-tight">MASTER<br />AGENCY<br />LEADER</div>
-          </div>
+              {/* Center Logo */}
+              <div className="absolute w-[120px] h-[120px] bg-slate-800 flex flex-col items-center justify-center text-white p-2 shadow-inner" style={{ top: 240, left: 240 }}>
+                <Trophy className="w-8 h-8 text-yellow-400 mb-1" />
+                <div className="text-[10px] font-bold text-center leading-tight">MASTER<br />AGENCY<br />LEADER</div>
+              </div>
 
-          {/* Yard Inner Boxes */}
-          <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-red-100 flex items-center justify-center" style={{ top: 40, left: 40 }}>
-            <div className="text-red-300 font-bold text-xl opacity-50">PLAYER 1</div>
-          </div>
-          <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-green-100 flex items-center justify-center" style={{ top: 40, left: 400 }}>
-            <div className="text-green-300 font-bold text-xl opacity-50">PLAYER 2</div>
-          </div>
-          <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-yellow-100 flex items-center justify-center" style={{ top: 400, left: 400 }}>
-            <div className="text-yellow-300 font-bold text-xl opacity-50">PLAYER 3</div>
-          </div>
-          <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-blue-100 flex items-center justify-center" style={{ top: 400, left: 40 }}>
-            <div className="text-blue-300 font-bold text-xl opacity-50">PLAYER 4</div>
-          </div>
+              {/* Yard Inner Boxes */}
+              <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-red-100 flex items-center justify-center" style={{ top: 40, left: 40 }}>
+                <div className="text-red-300 font-bold text-xl opacity-50">PLAYER 1</div>
+              </div>
+              <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-green-100 flex items-center justify-center" style={{ top: 40, left: 400 }}>
+                <div className="text-green-300 font-bold text-xl opacity-50">PLAYER 2</div>
+              </div>
+              <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-yellow-100 flex items-center justify-center" style={{ top: 400, left: 400 }}>
+                <div className="text-yellow-300 font-bold text-xl opacity-50">PLAYER 3</div>
+              </div>
+              <div className="absolute w-[160px] h-[160px] bg-white rounded-2xl shadow-inner border-4 border-blue-100 flex items-center justify-center" style={{ top: 400, left: 40 }}>
+                <div className="text-blue-300 font-bold text-xl opacity-50">PLAYER 4</div>
+              </div>
 
-          {/* Tokens */}
-          {players.map(p => {
-            const [r, c] = getPlayerCoords(p.id, p.step);
-            const offset = getOffset(p.id, p.step);
-            const isNearTop = r < 3;
-            return (
-              <motion.div
-                key={p.id}
-                onMouseEnter={() => setHoveredPlayerOnBoard(p.id)}
-                onMouseLeave={() => setHoveredPlayerOnBoard(null)}
-                className={`absolute w-7 h-7 rounded-full shadow-md border-2 border-white z-10 flex items-center justify-center cursor-help ${playersConfig[p.id].color}`}
-                animate={{
-                  top: r * 40 + 6 + offset[0],
-                  left: c * 40 + 6 + offset[1],
-                  scale: p.id === turn ? [1, 1.1, 1] : 1
-                }}
-                transition={{
-                  top: { type: 'spring', stiffness: 300, damping: 20 },
-                  left: { type: 'spring', stiffness: 300, damping: 20 },
-                  scale: { repeat: Infinity, duration: 1.5 }
-                }}
-              >
-                {/* Progression Tooltip */}
-                <AnimatePresence>
-                  {hoveredPlayerOnBoard === p.id && (
-                    <motion.div
-                      initial={{ opacity: 0, y: isNearTop ? -10 : 10, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className={`absolute ${isNearTop ? 'top-full mt-3' : 'bottom-full mb-3'} left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl shadow-xl p-3.5 border border-slate-700 w-52 z-50 pointer-events-none`}
-                    >
-                      <div className="font-bold text-sm mb-1">{playersConfig[p.id].name}</div>
-                      <div className="text-[11px] text-slate-300 font-medium leading-tight mb-1">
-                        {getLevel(p.step).name}
-                      </div>
-                      <div className={`absolute ${isNearTop ? '-top-1.5 border-t border-l' : '-bottom-1.5 border-b border-r'} left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-slate-700 transform rotate-45`}></div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            )
-          })}
-
-          {selectedMalPlayer !== null && (
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6"
-                onClick={() => setSelectedMalPlayer(null)}
-              >
-                <motion.div
-                  initial={{ scale: 0.95, y: 10 }}
-                  animate={{ scale: 1, y: 0 }}
-                  onClick={e => e.stopPropagation()}
-                  className="bg-slate-800 border-2 border-slate-700 rounded-2xl p-6 text-white w-full max-w-sm shadow-2xl relative"
-                >
-                  <button
-                    onClick={() => setSelectedMalPlayer(null)}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+              {/* Tokens */}
+              {players.map(p => {
+                const [r, c] = getPlayerCoords(p.id, p.step);
+                const offset = getOffset(p.id, p.step);
+                const isNearTop = r < 3;
+                return (
+                  <motion.div
+                    key={p.id}
+                    onMouseEnter={() => setHoveredPlayerOnBoard(p.id)}
+                    onMouseLeave={() => setHoveredPlayerOnBoard(null)}
+                    className={`absolute w-7 h-7 rounded-full shadow-md border-2 border-white z-10 flex items-center justify-center cursor-help ${playersConfig[p.id].color}`}
+                    animate={{
+                      top: r * 40 + 6 + offset[0],
+                      left: c * 40 + 6 + offset[1],
+                      scale: p.id === turn ? [1, 1.1, 1] : 1
+                    }}
+                    transition={{
+                      top: { type: 'spring', stiffness: 300, damping: 20 },
+                      left: { type: 'spring', stiffness: 300, damping: 20 },
+                      scale: { repeat: Infinity, duration: 1.5 }
+                    }}
                   >
-                    <X className="w-5 h-5" />
-                  </button>
-                  <div className="flex items-center gap-4 mb-5 border-b border-slate-700 pb-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${playersConfig[selectedMalPlayer].color}`}>
-                      <Crown className="w-6 h-6 text-yellow-300" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white leading-tight">{playersConfig[selectedMalPlayer].name}</h2>
-                      <p className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider mt-0.5">Master Agency Leader</p>
-                    </div>
-                  </div>
+                    {/* Progression Tooltip */}
+                    <AnimatePresence>
+                      {hoveredPlayerOnBoard === p.id && (
+                        <motion.div
+                          initial={{ opacity: 0, y: isNearTop ? -10 : 10, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className={`absolute ${isNearTop ? 'top-full mt-3' : 'bottom-full mb-3'} left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl shadow-xl p-3.5 border border-slate-700 w-52 z-50 pointer-events-none`}
+                        >
+                          <div className="font-bold text-sm mb-1">{playersConfig[p.id].name}</div>
+                          <div className="text-[11px] text-slate-300 font-medium leading-tight mb-1">
+                            {getLevel(p.step).name}
+                          </div>
+                          <div className={`absolute ${isNearTop ? '-top-1.5 border-t border-l' : '-bottom-1.5 border-b border-r'} left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-slate-700 transform rotate-45`}></div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )
+              })}
 
-                  <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[340px] pr-2 custom-scrollbar">
-                    {getLevel(57).benefits.map((b, i) => (
-                      <div key={i} className="bg-slate-700/40 p-3 rounded-xl border border-slate-600/50 hover:bg-slate-700/60 transition-colors">
-                        <div className="flex items-start gap-2 mb-1">
-                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
-                          <span className="text-[13px] font-bold text-emerald-100">{b}</span>
+              {selectedMalPlayer !== null && (
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6"
+                    onClick={() => setSelectedMalPlayer(null)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.95, y: 10 }}
+                      animate={{ scale: 1, y: 0 }}
+                      onClick={e => e.stopPropagation()}
+                      className="bg-slate-800 border-2 border-slate-700 rounded-2xl p-6 text-white w-full max-w-sm shadow-2xl relative"
+                    >
+                      <button
+                        onClick={() => setSelectedMalPlayer(null)}
+                        className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                      <div className="flex items-center gap-4 mb-5 border-b border-slate-700 pb-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${playersConfig[selectedMalPlayer].color}`}>
+                          <Crown className="w-6 h-6 text-yellow-300" />
                         </div>
-                        <p className="text-[11px] text-slate-400 pl-3.5 leading-snug">{benefitDescriptions[b]}</p>
+                        <div>
+                          <h2 className="text-xl font-bold text-white leading-tight">{playersConfig[selectedMalPlayer].name}</h2>
+                          <p className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider mt-0.5">Master Agency Leader</p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-          )}
+
+                      <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[340px] pr-2 custom-scrollbar">
+                        {getLevel(57).benefits.map((b, i) => (
+                          <div key={i} className="bg-slate-700/40 p-3 rounded-xl border border-slate-600/50 hover:bg-slate-700/60 transition-colors">
+                            <div className="flex items-start gap-2 mb-1">
+                              <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
+                              <span className="text-[13px] font-bold text-emerald-100">{b}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 pl-3.5 leading-snug">{benefitDescriptions[b]}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                </AnimatePresence>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Right Side - Dashboard */}
-      <div className="w-[450px] lg:w-[500px] flex flex-col gap-3 p-4 bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] h-screen z-20">
+      <div className="w-full lg:w-[450px] xl:w-[500px] flex flex-col gap-3 p-4 sm:p-6 bg-white lg:shadow-[-10px_0_30px_rgba(0,0,0,0.05)] lg:h-screen lg:overflow-y-auto shrink-0 z-20">
         <div className="flex justify-between items-start shrink-0">
           <div className="flex flex-col gap-1">
             <h1 className="text-xl lg:text-2xl font-bold text-slate-800 flex items-center gap-2">
