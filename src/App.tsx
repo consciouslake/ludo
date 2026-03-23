@@ -51,9 +51,9 @@ const playersConfig = [
 const safeZones = [1, 9, 14, 22, 27, 35, 40, 48];
 
 const benefitDescriptions: Record<string, string> = {
-  'Basic Commission': 'Earn commission based on product structure (e.g., 22.5% net payout on a 30% commission product).',
-  'Fixed Monthly Incentive (FMI)': 'Earn up to ₹1,25,000 based on rolling 24 months performance on self-sourced business.',
-  'ALC Samrat': 'Achieve 2 Lives with 1 Lakh Collected Premium to earn Sales Kit, Lapel Pin, and Leadership Workshop.',
+  'Basic Commission': 'Base (22.5% net), Booster (+10% on base for 2-Time STRIDE, 25% net), Bonus (+20% on booster for Samrats, 30% net). Maximize to 30% with 2 lives & 1 Lakh business!',
+  'Fixed Monthly Incentive (FMI)': 'Mandatory: ₹20,000/- WRP each quarter and YTD 13th month persistency of 75%. Payouts scale heavily (e.g. 2 lives/1L WRP = ₹500, 6 lives/6L WRP = ₹3000).',
+  'ALC Samrat': 'Minimum 2 Lives with 1 Lakh Collected Premium in FY\'26 (Min WRP: 20k or 5k for SPP). Unlocks Notebook, Lapel Pin, 2 Days Workshop, Cards & PAL Eligibility!',
   'BA Club Membership': 'Qualify for State, National, Asian, or Olympic clubs to earn monthly payouts (₹1000-₹5000) and loyalty bonuses.',
   'Incentives/Contests': 'Participate in quarterly and annual contests for international travel and extra rewards.',
   'Team Building Allowance (TBA)': 'Earn ₹3000/month for the first 3 months by recruiting BAs. Get double payout (₹9000) for hitting all targets!',
@@ -291,12 +291,18 @@ export default function App() {
     if (oldLevel !== newLevel && newStep > 0) {
       setPromotedPlayerInfo({ id: turn, role: newLevel, step: newStep, fromRole: oldLevel });
       addLog(`🎉 ${playersConfig[turn].name} promoted to ${getLevel(newStep).name}!`);
-    }
-    
-    // Club Milestones Check
-    const clubs: Record<number, string> = { 10: "STATE CLUB", 20: "NATIONAL CLUB", 30: "ASIAN CLUB", 40: "OLYMPIC CLUB" };
-    if (clubs[newStep] && player.step < newStep) {
-      setClubMilestone({ id: turn, club: clubs[newStep] });
+      
+      // Since Clubs are 1:1 mapped to Ranks, tie them directly to promotions so they can't be skipped by dice rolls
+      const rankToClub: Record<string, string> = {
+        'BA': 'ALC SAMRAT',
+        'PAL': 'STATE CLUB',
+        'AL': 'NATIONAL CLUB',
+        'SAL': 'ASIAN CLUB',
+        'MAL': 'OLYMPIC CLUB'
+      };
+      if (rankToClub[newLevel]) {
+        setClubMilestone({ id: turn, club: rankToClub[newLevel] });
+      }
     }
 
     if (capturedIdx !== -1) {
@@ -537,10 +543,10 @@ export default function App() {
                 )
               })}
 
-              {capturedPlayerId !== null && (
-                <AnimatePresence>
+              <AnimatePresence>
+                {capturedPlayerId !== null && (
                   <motion.div key="captured-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} className="bg-red-50 border-2 border-red-500 rounded-2xl p-6 text-slate-800 w-full max-w-sm shadow-2xl relative text-center">
+                    <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 10 }} className="bg-red-50 border-2 border-red-500 rounded-2xl p-6 text-slate-800 w-full max-w-sm shadow-2xl relative text-center">
                       <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
                         <TrendingUp className="w-8 h-8 text-red-500 transform rotate-180" />
                       </div>
@@ -556,13 +562,13 @@ export default function App() {
                       <button onClick={() => setCapturedPlayerId(null)} className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors">Start Over</button>
                     </motion.div>
                   </motion.div>
-                </AnimatePresence>
-              )}
+                )}
+              </AnimatePresence>
 
-              {promotedPlayerInfo !== null && (
-                <AnimatePresence>
+              <AnimatePresence>
+                {promotedPlayerInfo !== null && (
                   <motion.div key="promo-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-gradient-to-br from-indigo-900 to-slate-900 border-2 border-indigo-500/50 rounded-2xl p-4 sm:p-5 text-white w-full max-w-sm shadow-[0_0_40px_rgba(99,102,241,0.3)] relative max-h-[85vh] overflow-y-auto thin-scrollbar flex flex-col">
+                    <motion.div initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 20 }} className="bg-gradient-to-br from-indigo-900 to-slate-900 border-2 border-indigo-500/50 rounded-2xl p-4 sm:p-5 text-white w-full max-w-sm shadow-[0_0_40px_rgba(99,102,241,0.3)] relative max-h-[85vh] overflow-y-auto thin-scrollbar flex flex-col">
                       
                       <div className="shrink-0 mb-3 text-center">
                         <div className="bg-indigo-500/20 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 border border-indigo-400/50">
@@ -584,7 +590,7 @@ export default function App() {
                          </ul>
                       </div>
 
-                      {getPromotionCriteria(promotedPlayerInfo.role) && (
+                      {getPromotionCriteria(promotedPlayerInfo.role) && promotedPlayerInfo.role !== 'Start' && (
                         <div className="bg-slate-900/60 border border-indigo-500/30 rounded-xl p-3 mb-3 shrink-0">
                            <h3 className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-indigo-400"/> Next Goal: {getPromotionCriteria(promotedPlayerInfo.role)?.next}</h3>
                            <ul className="text-[10px] text-slate-400 space-y-1">
@@ -592,6 +598,17 @@ export default function App() {
                                <li key={i} className="flex items-start gap-1.5"><div className="w-1 h-1 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div><span className="leading-snug">{c}</span></li>
                              ))}
                            </ul>
+                        </div>
+                      )}
+
+                      {/* Explicitly highlighting Progressive Commissions and FMI for returning/new BAs */}
+                      {promotedPlayerInfo.role === 'BA' && (
+                        <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900/40 border border-emerald-500/30 rounded-xl p-3 mb-3 shrink-0 text-left">
+                           <h3 className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest mb-2 border-b border-emerald-500/30 pb-1.5 flex items-center gap-1"><Star className="w-3 h-3 text-emerald-400" /> Commision & FMI Targets</h3>
+                           <div className="text-[9.5px] text-slate-300 space-y-2 leading-relaxed">
+                              <div><strong className="text-emerald-200">Progressive Commission:</strong> Base (22.5%) ➔ Booster (25% for 2-Time STRIDE) ➔ Bonus (30% for SAMRAT achieving 1L business & 2 lives in a single month).</div>
+                              <div><strong className="text-emerald-200">FMI Mandates:</strong> ₹20,000 WRP per quarter is mandatory to be eligible. YTD 13th month persistency MUST be 75% for payouts.</div>
+                           </div>
                         </div>
                       )}
 
@@ -605,33 +622,49 @@ export default function App() {
                       <button onClick={() => setPromotedPlayerInfo(null)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold uppercase tracking-wider text-sm transition-colors shadow-[0_0_15px_rgba(79,70,229,0.5)] shrink-0 mt-auto">Claim Title</button>
                     </motion.div>
                   </motion.div>
-                </AnimatePresence>
-              )}
+                )}
+              </AnimatePresence>
 
-              {clubMilestone !== null && (
-                <AnimatePresence>
+              <AnimatePresence>
+                {clubMilestone !== null && promotedPlayerInfo === null && (
                   <motion.div key="club-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} className="bg-slate-800 border-2 border-amber-500/50 rounded-2xl p-6 text-white w-full max-w-sm shadow-2xl relative text-center">
+                    <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 10 }} className="bg-slate-800 border-2 border-amber-500/50 rounded-2xl p-6 text-white w-full max-w-sm shadow-2xl relative text-center">
                       <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(251,191,36,0.6)] border-2 border-white/20">
                         <Trophy className="w-8 h-8 text-white drop-shadow-md" />
                       </div>
                       <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500 mb-1">{clubMilestone.club}</h2>
                       <p className="text-xs font-medium text-amber-200/80 mb-6 uppercase tracking-widest">Achieved Requirement!</p>
                       <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 mb-6 text-left">
-                        <h3 className="font-bold text-slate-300 text-xs mb-2 uppercase tracking-wider">Rewards Overview</h3>
-                        <ul className="text-xs text-slate-400 space-y-2">
-                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>Monthly Payout Achieved</li>
-                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>Customized Visiting Cards & Name Lapel Pin</li>
+                        <h3 className="font-bold text-slate-300 text-[11px] mb-2 uppercase tracking-wider border-b border-slate-700/50 pb-2">Target & Rewards Overview</h3>
+                        <ul className="text-[11px] text-slate-400 space-y-2 mb-3">
+                          {clubMilestone.club === 'ALC SAMRAT' ? (
+                            <>
+                              <li className="flex items-start gap-2 mb-3 text-amber-200/90 font-medium">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></div>
+                                <span>Minimum 2 Lives with 1 Lakh Collected Premium in FY'26 (Min WRP: 20k or 5k for SPP).</span>
+                              </li>
+                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>Sales Kit (Bag, Sales Note Book)</li>
+                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>ALC Samrat Lapel Pin</li>
+                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>2 Days Leadership Recruitment Workshop</li>
+                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>Visiting Cards</li>
+                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>Eligible to become Provisional Agency Leader</li>
+                            </>
+                          ) : (
+                            <>
+                              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>Monthly Payout Achieved</li>
+                              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>Customized Visiting Cards & Name Lapel Pin</li>
+                            </>
+                          )}
                           {['ASIAN CLUB', 'OLYMPIC CLUB'].includes(clubMilestone.club) && (
-                             <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></div><strong className="text-amber-300">National Convention Trip Unlocked!</strong></li>
+                             <li className="flex items-center gap-2 pt-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></div><strong className="text-amber-300">National Convention Trip Unlocked!</strong></li>
                           )}
                         </ul>
                       </div>
                       <button onClick={() => setClubMilestone(null)} className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-900 rounded-xl font-extrabold tracking-wider transition-all shadow-[0_0_15px_rgba(251,191,36,0.4)]">Continue Journey</button>
                     </motion.div>
                   </motion.div>
-                </AnimatePresence>
-              )}
+                )}
+              </AnimatePresence>
 
               {selectedMalPlayer !== null && (
                 <AnimatePresence>
