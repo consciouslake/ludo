@@ -206,11 +206,11 @@ export default function App() {
       const isMobile = window.innerWidth < 1024;
       if (isMobile) {
         const availableWidth = window.innerWidth - 32;
-        setScale(Math.min(1, availableWidth / 616));
+        setScale(Math.min(1.2, availableWidth / 616));
       } else {
         const availableHeight = window.innerHeight - 64;
         const availableWidth = window.innerWidth - 450 - 64;
-        setScale(Math.min(1, availableHeight / 616, availableWidth / 616));
+        setScale(Math.min(1.25, availableHeight / 616, availableWidth / 616));
       }
     };
     handleResize();
@@ -245,13 +245,13 @@ export default function App() {
     const interval = setInterval(() => {
       setDiceValue(Math.floor(Math.random() * 6) + 1);
       rolls++;
-      if (rolls > 10) {
+      if (rolls > 3) { // Hyper-fast rolling duration
         clearInterval(interval);
         const finalValue = Math.floor(Math.random() * 6) + 1;
         setDiceValue(finalValue);
         setDiceStatus('rolled');
       }
-    }, 50);
+    }, 30); // Lightning intervals
   };
 
   const executeMove = useCallback(() => {
@@ -259,8 +259,17 @@ export default function App() {
     let newStep = player.step === 0 ? diceValue : player.step + diceValue;
 
     if (newStep > 57) {
-      addLog(`${playersConfig[turn].name} needs an exact roll to finish.`);
+      addLog(`${playersConfig[turn].name} needs exactly ${57 - player.step} to finish.`);
       setDiceStatus('idle');
+      
+      // Pass the turn to the next valid player since they cannot make this move
+      let next = (turn + 1) % 4;
+      let count = 0;
+      while (players[next].step === 57 && count < 4) {
+        next = (next + 1) % 4;
+        count++;
+      }
+      setTurn(next);
       return;
     }
 
@@ -291,17 +300,20 @@ export default function App() {
     if (oldLevel !== newLevel && newStep > 0) {
       setPromotedPlayerInfo({ id: turn, role: newLevel, step: newStep, fromRole: oldLevel });
       addLog(`🎉 ${playersConfig[turn].name} promoted to ${getLevel(newStep).name}!`);
-      
-      // Since Clubs are 1:1 mapped to Ranks, tie them directly to promotions so they can't be skipped by dice rolls
-      const rankToClub: Record<string, string> = {
-        'BA': 'ALC SAMRAT',
-        'PAL': 'STATE CLUB',
-        'AL': 'NATIONAL CLUB',
-        'SAL': 'ASIAN CLUB',
-        'MAL': 'OLYMPIC CLUB'
-      };
-      if (rankToClub[newLevel]) {
-        setClubMilestone({ id: turn, club: rankToClub[newLevel] });
+    }
+
+    // Staggered Club Milestones: Unlocked exactly mid-rank!
+    const clubThresholds = [
+      { club: 'ALC SAMRAT', threshold: 8 },     // Mid-way through BA (1 to 14)
+      { club: 'STATE CLUB', threshold: 22 },    // Mid-way through PAL (15 to 28)
+      { club: 'NATIONAL CLUB', threshold: 36 }, // Mid-way through AL (29 to 42)
+      { club: 'ASIAN CLUB', threshold: 50 },    // Mid-way through SAL (43 to 56)
+      { club: 'OLYMPIC CLUB', threshold: 57 }   // Simultaneously with MAL
+    ];
+
+    for (const { club, threshold } of clubThresholds) {
+      if (player.step < threshold && newStep >= threshold) {
+        setClubMilestone({ id: turn, club });
       }
     }
 
@@ -438,7 +450,8 @@ export default function App() {
       </AnimatePresence>
 
       {/* Left Side - Board */}
-      <div className="w-full lg:flex-1 relative flex items-center justify-center p-4 sm:p-8 lg:h-screen lg:overflow-hidden min-h-[400px] shrink-0 border-b border-white/10 lg:border-none">
+      <div className="w-full lg:flex-1 relative flex items-center justify-center p-4 sm:p-8 lg:p-12 lg:min-h-screen border-b border-white/10 lg:border-none">
+        
         <div style={{ width: 620 * scale, height: 620 * scale }} className="relative transition-all duration-300 shrink-0">
           <div className="absolute top-0 left-0 origin-top-left transition-transform duration-300" style={{ transform: `scale(${scale})` }}>
             <div className="relative shadow-[0_20px_80px_rgba(0,0,0,0.8)] rounded-[2rem] bg-slate-900/60 backdrop-blur-3xl border border-white/10 box-content overflow-hidden" style={{ width: '600px', height: '600px', padding: '10px' }}>
@@ -446,25 +459,21 @@ export default function App() {
               {/* Massive Yard Overlays for Seamless Gradient Look */}
               <div className="absolute rounded-[1.5rem] bg-gradient-to-br from-rose-500/30 to-rose-900/30 border border-rose-400/30 shadow-[inset_0_0_60px_rgba(244,63,94,0.3)] backdrop-blur-md z-10 flex flex-col items-center justify-center p-4" style={{ top: '10px', left: '10px', width: '232px', height: '232px' }}>
                 <div className="w-full h-full rounded-[1rem] bg-black/40 shadow-inner flex flex-col items-center justify-center border border-white/5 relative overflow-hidden">
-                   <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.05)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.05)_50%,rgba(255,255,255,0.05)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-20 pointer-events-none"></div>
                    <div className="text-3xl font-black text-white/10 tracking-[0.2em] relative z-10">PLAYER 1</div>
                 </div>
               </div>
               <div className="absolute rounded-[1.5rem] bg-gradient-to-bl from-emerald-500/30 to-emerald-900/30 border border-emerald-400/30 shadow-[inset_0_0_60px_rgba(16,185,129,0.3)] backdrop-blur-md z-10 flex flex-col items-center justify-center p-4" style={{ top: '10px', left: '378px', width: '232px', height: '232px' }}>
                 <div className="w-full h-full rounded-[1rem] bg-black/40 shadow-inner flex flex-col items-center justify-center border border-white/5 relative overflow-hidden">
-                   <div className="absolute inset-0 bg-[linear-gradient(-45deg,rgba(255,255,255,0.05)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.05)_50%,rgba(255,255,255,0.05)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-20 pointer-events-none"></div>
                    <div className="text-3xl font-black text-white/10 tracking-[0.2em] relative z-10">PLAYER 2</div>
                 </div>
               </div>
               <div className="absolute rounded-[1.5rem] bg-gradient-to-tl from-amber-500/30 to-amber-900/30 border border-amber-400/30 shadow-[inset_0_0_60px_rgba(245,158,11,0.3)] backdrop-blur-md z-10 flex flex-col items-center justify-center p-4" style={{ top: '378px', left: '378px', width: '232px', height: '232px' }}>
                 <div className="w-full h-full rounded-[1rem] bg-black/40 shadow-inner flex flex-col items-center justify-center border border-white/5 relative overflow-hidden">
-                   <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.05)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.05)_50%,rgba(255,255,255,0.05)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-20 pointer-events-none"></div>
                    <div className="text-3xl font-black text-white/10 tracking-[0.2em] relative z-10">PLAYER 3</div>
                 </div>
               </div>
               <div className="absolute rounded-[1.5rem] bg-gradient-to-tr from-blue-500/30 to-blue-900/30 border border-blue-400/30 shadow-[inset_0_0_60px_rgba(59,130,246,0.3)] backdrop-blur-md z-10 flex flex-col items-center justify-center p-4" style={{ top: '378px', left: '10px', width: '232px', height: '232px' }}>
                 <div className="w-full h-full rounded-[1rem] bg-black/40 shadow-inner flex flex-col items-center justify-center border border-white/5 relative overflow-hidden">
-                   <div className="absolute inset-0 bg-[linear-gradient(-45deg,rgba(255,255,255,0.05)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.05)_50%,rgba(255,255,255,0.05)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-20 pointer-events-none"></div>
                    <div className="text-3xl font-black text-white/10 tracking-[0.2em] relative z-10">PLAYER 4</div>
                 </div>
               </div>
@@ -567,59 +576,74 @@ export default function App() {
 
               <AnimatePresence>
                 {promotedPlayerInfo !== null && (
-                  <motion.div key="promo-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 20 }} className="bg-gradient-to-br from-indigo-900 to-slate-900 border-2 border-indigo-500/50 rounded-2xl p-4 sm:p-5 text-white w-full max-w-sm shadow-[0_0_40px_rgba(99,102,241,0.3)] relative max-h-[85vh] overflow-y-auto thin-scrollbar flex flex-col">
+                  <motion.div key="promo-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 flex items-center justify-center overflow-hidden rounded-[2rem]">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className={`bg-gradient-to-br from-slate-800 to-slate-900 border-[4px] ${playersConfig[promotedPlayerInfo.id].border.split(' ')[0]} rounded-[2rem] p-5 sm:p-6 text-white w-full h-full shadow-[inset_0_0_100px_rgba(0,0,0,0.5)] flex flex-col relative z-20`}>
                       
-                      <div className="shrink-0 mb-3 text-center">
-                        <div className="bg-indigo-500/20 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 border border-indigo-400/50">
-                          {getRoleIcon(promotedPlayerInfo.role, 'w-6 h-6 text-indigo-300')}
+                      <div className="shrink-0 mb-3 sm:mb-4 text-center">
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-2 shadow-[0_0_20px_rgba(0,0,0,0.5)] border-2 border-white/20 ${playersConfig[promotedPlayerInfo.id].color}`}>
+                          {getRoleIcon(promotedPlayerInfo.role, 'w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-md')}
                         </div>
-                        <h2 className="text-xl sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-white leading-tight">Level Up!</h2>
-                        <p className="text-xs text-indigo-200/80 font-medium">You've reached {getLevel(promotedPlayerInfo.step).name}</p>
+                        <h2 className={`text-2xl sm:text-3xl font-extrabold leading-tight ${playersConfig[promotedPlayerInfo.id].text} drop-shadow-md`}>Level Up!</h2>
+                        <p className={`text-xs sm:text-sm font-medium tracking-wide ${playersConfig[promotedPlayerInfo.id].text} opacity-90`}>You've reached {getLevel(promotedPlayerInfo.step).name}</p>
                       </div>
                       
-                      <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 shrink-0">
-                         <h3 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1.5">New Benefits Unlocked</h3>
-                         <ul className="text-[11px] sm:text-xs text-slate-300 space-y-2">
-                           {getLevel(promotedPlayerInfo.step).benefits.slice(0, 4).map((b, i) => (
-                             <li key={i} className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div><span className="leading-snug">{b}</span></li>
-                           ))}
-                           {getLevel(promotedPlayerInfo.step).benefits.length > 4 && (
-                             <li className="text-slate-400 italic pl-3.5">+ {getLevel(promotedPlayerInfo.step).benefits.length - 4} more benefits!</li>
-                           )}
-                         </ul>
-                      </div>
-
-                      {getPromotionCriteria(promotedPlayerInfo.role) && promotedPlayerInfo.role !== 'Start' && (
-                        <div className="bg-slate-900/60 border border-indigo-500/30 rounded-xl p-3 mb-3 shrink-0">
-                           <h3 className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-indigo-400"/> Next Goal: {getPromotionCriteria(promotedPlayerInfo.role)?.next}</h3>
-                           <ul className="text-[10px] text-slate-400 space-y-1">
-                             {getPromotionCriteria(promotedPlayerInfo.role)?.criteria.map((c, i) => (
-                               <li key={i} className="flex items-start gap-1.5"><div className="w-1 h-1 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div><span className="leading-snug">{c}</span></li>
+                      <div className="flex-1 flex flex-col justify-start gap-4 mb-4 min-h-0 relative z-10 w-full">
+                        
+                        {/* UNLOCKED BENEFITS CARD (Full Width - Multi-column grid for all items) */}
+                        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-4 shadow-lg w-full shrink-0">
+                           <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 border-b border-slate-700 pb-2 flex items-center gap-1.5 ${playersConfig[promotedPlayerInfo.id].text}`}><Star className={`w-4 h-4 ${playersConfig[promotedPlayerInfo.id].text}`} /> All Unlocked Benefits</h3>
+                           <ul className="text-[11px] sm:text-[12px] text-slate-200 grid grid-cols-2 gap-x-3 gap-y-2.5 max-h-[140px] sm:max-h-[160px] overflow-y-auto thin-scrollbar pr-2">
+                             {getLevel(promotedPlayerInfo.step).benefits.map((b, i) => (
+                               <li key={i} className="flex items-start gap-2.5">
+                                  <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${playersConfig[promotedPlayerInfo.id].color} shadow-lg`}></div>
+                                  <span className="leading-snug">{b}</span>
+                               </li>
                              ))}
                            </ul>
                         </div>
-                      )}
 
-                      {/* Explicitly highlighting Progressive Commissions and FMI for returning/new BAs */}
-                      {promotedPlayerInfo.role === 'BA' && (
-                        <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900/40 border border-emerald-500/30 rounded-xl p-3 mb-3 shrink-0 text-left">
-                           <h3 className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest mb-2 border-b border-emerald-500/30 pb-1.5 flex items-center gap-1"><Star className="w-3 h-3 text-emerald-400" /> Commision & FMI Targets</h3>
-                           <div className="text-[9.5px] text-slate-300 space-y-2 leading-relaxed">
-                              <div><strong className="text-emerald-200">Progressive Commission:</strong> Base (22.5%) ➔ Booster (25% for 2-Time STRIDE) ➔ Bonus (30% for SAMRAT achieving 1L business & 2 lives in a single month).</div>
-                              <div><strong className="text-emerald-200">FMI Mandates:</strong> ₹20,000 WRP per quarter is mandatory to be eligible. YTD 13th month persistency MUST be 75% for payouts.</div>
-                           </div>
+                        {/* 2-Column Grid for Next Goal and Specific Role Highlights */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 min-h-0">
+                           {getPromotionCriteria(promotedPlayerInfo.role) && promotedPlayerInfo.role !== 'Start' ? (
+                             <div className={`bg-slate-900/60 border rounded-xl p-4 shadow-lg flex flex-col justify-start ${!['BA', 'AL', 'SAL'].includes(promotedPlayerInfo.role) ? 'sm:col-span-2' : ''} ${playersConfig[promotedPlayerInfo.id].border.split(' ')[0]}`}>
+                                <h3 className={`text-xs font-bold uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-2 flex items-center gap-1.5 ${playersConfig[promotedPlayerInfo.id].text}`}><TrendingUp className={`w-4 h-4 ${playersConfig[promotedPlayerInfo.id].text}`}/> Next Goal: {getPromotionCriteria(promotedPlayerInfo.role)?.next}</h3>
+                                <ul className="text-[11px] sm:text-xs text-slate-300 space-y-2 mt-1">
+                                  {getPromotionCriteria(promotedPlayerInfo.role)?.criteria.map((c, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${playersConfig[promotedPlayerInfo.id].color}`}></div>
+                                      <span className="leading-snug">{c}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                             </div>
+                           ) : (
+                             <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 shadow-inner flex flex-col items-center justify-center opacity-60 sm:col-span-2">
+                               <Crown className="w-6 h-6 text-slate-500 mb-1.5" />
+                               <span className="text-xs uppercase font-bold text-slate-500 tracking-widest">Pinnacle Reached</span>
+                             </div>
+                           )}
+
+                           {/* Explicitly highlighting Progressive Commissions and FMI for returning/new BAs */}
+                           {promotedPlayerInfo.role === 'BA' && (
+                             <div className={`bg-gradient-to-r ${playersConfig[promotedPlayerInfo.id].text === 'text-emerald-400' ? 'from-emerald-900/40' : 'from-slate-800'} to-slate-900/40 border rounded-xl p-4 text-left shadow-lg flex flex-col ${playersConfig[promotedPlayerInfo.id].border.split(' ')[0]}`}>
+                                <h3 className={`text-xs font-bold uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-2 flex items-center gap-1.5 ${playersConfig[promotedPlayerInfo.id].text}`}><Star className={`w-4 h-4 ${playersConfig[promotedPlayerInfo.id].text}`} /> Commission & FMI</h3>
+                                <div className="text-[11px] sm:text-xs text-slate-200 mt-1 space-y-2.5 flex flex-col justify-center h-full">
+                                   <div><strong className={playersConfig[promotedPlayerInfo.id].text}>Commission:</strong> Base 22.5% ➔ Booster 25% ➔ Bonus 30%</div>
+                                   <div><strong className={playersConfig[promotedPlayerInfo.id].text}>FMI Mandate:</strong> ₹20k WRP / quarter. 75% YTD persistency.</div>
+                                </div>
+                             </div>
+                           )}
+
+                           {(promotedPlayerInfo.role === 'AL' || promotedPlayerInfo.role === 'SAL') && (
+                              <div className={`bg-gradient-to-r border rounded-xl p-4 shadow-lg flex flex-col justify-center ${playersConfig[promotedPlayerInfo.id].border.split(' ')[0]}`}>
+                                <div className="flex items-center gap-2 mb-2"><Crown className={`w-4 h-4 ${playersConfig[promotedPlayerInfo.id].text}`} /><span className={`text-xs font-bold uppercase tracking-wider ${playersConfig[promotedPlayerInfo.id].text}`}>Elite Club Unlocked</span></div>
+                                <p className="text-[11px] sm:text-xs text-slate-300 leading-snug">Access to AL Office infrastructure. Qualify 5 consecutive years to earn EVs!</p>
+                              </div>
+                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {(promotedPlayerInfo.role === 'AL' || promotedPlayerInfo.role === 'SAL') && (
-                         <div className="bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 rounded-xl p-3 mb-3 shrink-0">
-                           <div className="flex items-center gap-1.5 mb-1"><Crown className="w-3.5 h-3.5 text-amber-400" /><span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Elite Club & Office Unlocked</span></div>
-                           <p className="text-[9px] sm:text-[10px] text-amber-200/70 leading-snug">Access to AL Office infrastructure. Qualify for 5 consecutive years to earn Royal Enfield or Tata Punch EVs!</p>
-                         </div>
-                      )}
-
-                      <button onClick={() => setPromotedPlayerInfo(null)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold uppercase tracking-wider text-sm transition-colors shadow-[0_0_15px_rgba(79,70,229,0.5)] shrink-0 mt-auto">Claim Title</button>
+                      <button onClick={() => setPromotedPlayerInfo(null)} className={`w-full py-3 sm:py-3.5 text-white rounded-xl font-bold uppercase tracking-widest text-sm sm:text-base transition-colors shrink-0 mt-6 sm:mt-8 hover:brightness-110 shadow-[0_0_20px_rgba(0,0,0,0.5)] ${playersConfig[promotedPlayerInfo.id].color}`}>Claim Title</button>
                     </motion.div>
                   </motion.div>
                 )}
@@ -627,40 +651,49 @@ export default function App() {
 
               <AnimatePresence>
                 {clubMilestone !== null && promotedPlayerInfo === null && (
-                  <motion.div key="club-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 rounded-[4px] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 10 }} className="bg-slate-800 border-2 border-amber-500/50 rounded-2xl p-6 text-white w-full max-w-sm shadow-2xl relative text-center">
-                      <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(251,191,36,0.6)] border-2 border-white/20">
-                        <Trophy className="w-8 h-8 text-white drop-shadow-md" />
+                  <motion.div key="club-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 flex items-center justify-center overflow-hidden rounded-[2rem]">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className={`bg-slate-800/90 border-[4px] border-slate-700/50 rounded-[2rem] p-5 sm:p-6 text-white w-full h-full shadow-[inset_0_0_100px_rgba(0,0,0,0.5)] flex flex-col relative text-center z-20 ${playersConfig[clubMilestone.id].border.split(' ')[0]}`}>
+                      
+                      <div className="shrink-0 mb-4 sm:mb-5 mt-2">
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 shadow-[0_0_40px_rgba(251,191,36,0.5)] border-[3px] border-white/20 ${playersConfig[clubMilestone.id].color}`}>
+                          <Trophy className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-md" />
+                        </div>
+                        <h2 className={`text-2xl sm:text-4xl font-extrabold mb-1 sm:mb-2 leading-tight drop-shadow-md ${playersConfig[clubMilestone.id].text}`}>{clubMilestone.club}</h2>
+                        <p className={`text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] opacity-90 ${playersConfig[clubMilestone.id].text}`}>Achieved Requirement!</p>
                       </div>
-                      <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500 mb-1">{clubMilestone.club}</h2>
-                      <p className="text-xs font-medium text-amber-200/80 mb-6 uppercase tracking-widest">Achieved Requirement!</p>
-                      <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 mb-6 text-left">
-                        <h3 className="font-bold text-slate-300 text-[11px] mb-2 uppercase tracking-wider border-b border-slate-700/50 pb-2">Target & Rewards Overview</h3>
-                        <ul className="text-[11px] text-slate-400 space-y-2 mb-3">
-                          {clubMilestone.club === 'ALC SAMRAT' ? (
-                            <>
-                              <li className="flex items-start gap-2 mb-3 text-amber-200/90 font-medium">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></div>
-                                <span>Minimum 2 Lives with 1 Lakh Collected Premium in FY'26 (Min WRP: 20k or 5k for SPP).</span>
-                              </li>
-                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>Sales Kit (Bag, Sales Note Book)</li>
-                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>ALC Samrat Lapel Pin</li>
-                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>2 Days Leadership Recruitment Workshop</li>
-                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>Visiting Cards</li>
-                              <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5"></div>Eligible to become Provisional Agency Leader</li>
-                            </>
-                          ) : (
-                            <>
-                              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>Monthly Payout Achieved</li>
-                              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>Customized Visiting Cards & Name Lapel Pin</li>
-                            </>
+
+                      <div className="bg-slate-900/60 rounded-xl p-4 sm:p-5 border border-slate-700/50 text-left flex-1 min-h-0 mb-4 sm:mb-5 shadow-xl flex flex-col justify-center">
+                        <h3 className={`font-bold text-xs sm:text-sm mb-2 sm:mb-3 uppercase tracking-widest border-b border-slate-700/50 pb-2 ${playersConfig[clubMilestone.id].text}`}>Target & Rewards Overview</h3>
+                        <div className="flex-1 overflow-hidden flex flex-col justify-center">
+                          {clubMilestone.club === 'ALC SAMRAT' && (
+                             <div className={`flex items-start gap-2 mb-3 font-semibold text-xs sm:text-sm ${playersConfig[clubMilestone.id].text}`}>
+                               <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mt-1 ${playersConfig[clubMilestone.id].color}`}></div>
+                               <span className="leading-snug">Minimum 2 Lives with 1 Lakh Collected Premium in FY'26 (Min WRP: 20k or 5k for SPP).</span>
+                             </div>
                           )}
-                          {['ASIAN CLUB', 'OLYMPIC CLUB'].includes(clubMilestone.club) && (
-                             <li className="flex items-center gap-2 pt-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></div><strong className="text-amber-300">National Convention Trip Unlocked!</strong></li>
-                          )}
-                        </ul>
+
+                          <ul className={`text-[11px] sm:text-xs text-slate-300 grid ${clubMilestone.club === 'ALC SAMRAT' ? 'grid-cols-2 gap-x-2 gap-y-2' : 'grid-cols-1 gap-y-3'} leading-relaxed w-full`}>
+                            {clubMilestone.club === 'ALC SAMRAT' ? (
+                              <>
+                                <li className="flex items-start gap-2"><div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${playersConfig[clubMilestone.id].color}`}></div>Sales Kit (Bag, Notebook)</li>
+                                <li className="flex items-start gap-2"><div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${playersConfig[clubMilestone.id].color}`}></div>ALC Samrat Lapel Pin</li>
+                                <li className="flex items-start gap-2"><div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${playersConfig[clubMilestone.id].color}`}></div>2 Days Leadership Workshop</li>
+                                <li className="flex items-start gap-2"><div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${playersConfig[clubMilestone.id].color}`}></div>Visiting Cards</li>
+                                <li className="flex items-start gap-2 col-span-2"><div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${playersConfig[clubMilestone.id].color}`}></div><em className="text-slate-100 font-bold opacity-90">Eligible to become Provisional Agency Leader</em></li>
+                              </>
+                            ) : (
+                              <>
+                                <li className="flex items-center gap-2"><div className={`w-1.5 h-1.5 rounded-full shrink-0 ${playersConfig[clubMilestone.id].color}`}></div>Monthly Payout Achieved</li>
+                                <li className="flex items-center gap-2"><div className={`w-1.5 h-1.5 rounded-full shrink-0 ${playersConfig[clubMilestone.id].color}`}></div>Customized Visiting Cards & Name Lapel Pin</li>
+                              </>
+                            )}
+                            {['ASIAN CLUB', 'OLYMPIC CLUB'].includes(clubMilestone.club) && (
+                               <li className={`flex items-center gap-2 pt-2 mt-1 border-t border-slate-800 ${clubMilestone.club === 'ALC SAMRAT' ? 'col-span-2' : ''}`}><div className={`w-2 h-2 rounded-full shrink-0 ${playersConfig[clubMilestone.id].color}`}></div><strong className={`text-xs text-center w-full block ${playersConfig[clubMilestone.id].text}`}>National Convention Trip Unlocked!</strong></li>
+                            )}
+                          </ul>
+                        </div>
                       </div>
-                      <button onClick={() => setClubMilestone(null)} className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-900 rounded-xl font-extrabold tracking-wider transition-all shadow-[0_0_15px_rgba(251,191,36,0.4)]">Continue Journey</button>
+                      <button onClick={() => setClubMilestone(null)} className={`w-full py-3 sm:py-3.5 text-white rounded-xl font-extrabold uppercase tracking-widest text-sm sm:text-base transition-all mt-auto shrink-0 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:brightness-110 ${playersConfig[clubMilestone.id].color}`}>Continue Journey</button>
                     </motion.div>
                   </motion.div>
                 )}
@@ -745,31 +778,41 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex gap-3 items-stretch shrink-0">
-          <div className="flex flex-col items-center gap-2 glass-card p-3 rounded-xl border border-white/5 shadow-inner">
-            <div className="text-[10px] font-black text-amber-500/80 uppercase tracking-widest drop-shadow-sm">Roll Dice</div>
+        <div className="flex gap-3 items-stretch shrink-0 mb-1 lg:mb-2">
+          {/* Awesome Dice Integrated into Sidebar */}
+          <div className="flex flex-col items-center justify-center p-3 rounded-xl border border-white/5 shadow-inner bg-slate-800/40 w-[110px] shrink-0">
+            <div className="text-[9px] font-black text-amber-500/80 uppercase tracking-widest drop-shadow-sm mb-2 text-center w-full truncate">Roll Dice</div>
             <motion.button
               onClick={handleRoll}
               disabled={players.every(p => p.step === 57) || diceStatus !== 'idle'}
               animate={diceStatus === 'rolling' ? {
-                rotate: [0, -15, 15, -15, 15, 0],
-                scale: [1, 1.1, 1.1, 1.1, 1.1, 1]
-              } : { rotate: 0, scale: 1 }}
-              transition={{ duration: 0.4, repeat: diceStatus === 'rolling' ? Infinity : 0 }}
-              className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-bold transition-all
-                ${diceStatus !== 'idle' ? 'opacity-80 cursor-not-allowed bg-slate-800 border-2 border-slate-700 text-slate-500' : 'cursor-pointer bg-gradient-to-br from-indigo-500 to-purple-600 border border-white/20 text-white shadow-[0_0_20px_rgba(99,102,241,0.6)] hover:shadow-[0_0_30px_rgba(99,102,241,0.8)] hover:scale-105'}`}
+                rotateX: [0, 360, 720, 1080],
+                rotateY: [0, 360, 720, 1080],
+                rotateZ: [0, 15, -15, 15, 0],
+                scale: [1, 1.1, 1.2, 1.1, 1],
+                boxShadow: [
+                  "0 0 15px rgba(99,102,241,0.6), inset 0 0 15px rgba(255,255,255,0.4)",
+                  "0 0 40px rgba(16,185,129,0.9), inset 0 0 25px rgba(255,255,255,0.8)",
+                  "0 0 50px rgba(245,158,11,1), inset 0 0 35px rgba(255,255,255,0.9)",
+                  "0 0 40px rgba(99,102,241,0.9), inset 0 0 25px rgba(255,255,255,0.8)",
+                  "0 0 20px rgba(99,102,241,0.6), inset 0 0 15px rgba(255,255,255,0.5)"
+                ]
+              } : { rotateX: 0, rotateY: 0, rotateZ: 0, scale: 1 }}
+              transition={{ duration: 0.12, repeat: diceStatus === 'rolling' ? Infinity : 0, ease: "linear" }}
+              className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black transition-all ${playersConfig[turn].color} border-[3px] ${playersConfig[turn].border} ${diceStatus !== 'idle' ? 'opacity-90 cursor-not-allowed brightness-125' : 'cursor-pointer shadow-[0_0_20px_rgba(0,0,0,0.5),inset_0_2px_5px_rgba(255,255,255,0.4)] hover:scale-105 hover:brightness-110'}`}
+              style={{ transformStyle: 'preserve-3d', perspective: '800px' }}
             >
-              {diceStatus === 'rolling' ? <Dices className="w-8 h-8 text-white/50" /> : <span className="drop-shadow-md">{diceValue}</span>}
+              {diceStatus === 'rolling' ? <Dices className="w-8 h-8 sm:w-10 sm:h-10 text-white/80 animate-spin" /> : <span className="text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">{diceValue}</span>}
             </motion.button>
           </div>
 
-          <div className="flex-1 glass-card p-3 rounded-xl border border-white/5 flex flex-col shadow-inner">
-            <div className="text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-1.5 drop-shadow-sm flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Live Event Log
+          <div className="flex-1 glass-card p-3 sm:p-4 rounded-xl border border-white/5 flex flex-col shadow-inner bg-slate-800/40 min-w-0">
+            <div className="text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2 drop-shadow-sm flex items-center gap-1.5 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)] shrink-0"></span> <span className="truncate">Live Event Log</span>
             </div>
             <div className="flex-1 flex flex-col gap-1.5 max-h-[60px] overflow-hidden">
               {logs.slice(0, 3).map((log, i) => (
-                <div key={i} className={`text-[11px] leading-tight truncate ${i === 0 ? 'text-indigo-200 font-bold' : 'text-slate-500'}`}>
+                <div key={i} className={`text-[10px] sm:text-[11px] leading-snug truncate ${i === 0 ? 'text-indigo-200 font-bold drop-shadow-sm' : 'text-slate-500'}`}>
                   {log}
                 </div>
               ))}
@@ -777,7 +820,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 shrink-0">
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 flex-1 lg:overflow-visible pb-2 lg:pb-0">
           {players.map(p => {
             const level = getLevel(p.step);
             const isTurn = p.id === turn;
@@ -788,69 +831,34 @@ export default function App() {
                 onClick={() => {
                   if (p.step === 57) setSelectedMalPlayer(p.id);
                 }}
-                className={`p-3 rounded-xl border transition-all ${p.step === 57 ? 'cursor-pointer' : 'cursor-default'} ${isTurn ? `${playersConfig[p.id].border} bg-slate-800/80 backdrop-blur-md relative z-10 scale-[1.02]` : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 relative z-10'}`}
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border transition-all flex flex-col justify-center shrink-0 ${p.step === 57 ? 'cursor-pointer' : 'cursor-default'} ${isTurn ? `${playersConfig[p.id].border} bg-slate-800/90 backdrop-blur-md relative z-10 lg:scale-[1.02] shadow-[0_10px_30px_rgba(0,0,0,0.3)]` : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 relative z-10 opacity-90'}`}
               >
                 <div className="flex items-center gap-2 mb-1.5">
-                  <div className={`w-3 h-3 rounded-full ${playersConfig[p.id].color}`}></div>
-                  <h3 className={`font-bold text-xs ${isTurn ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>{playersConfig[p.id].name}</h3>
-                  <div className={`ml-auto ${isTurn ? playersConfig[p.id].text : 'text-slate-600'}`}>
-                    {getRoleIcon(level.role, "w-3.5 h-3.5")}
+                  <div className={`w-2.5 h-2.5 rounded-full ${playersConfig[p.id].color} shadow-sm shrink-0`}></div>
+                  <h3 className={`font-bold text-[11px] sm:text-xs tracking-widest uppercase truncate ${isTurn ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>{playersConfig[p.id].name}</h3>
+                  <div className={`ml-auto shrink-0 ${isTurn ? playersConfig[p.id].text : 'text-slate-600'}`}>
+                    {getRoleIcon(level.role, "w-3.5 h-3.5 sm:w-4 sm:h-4")}
                   </div>
                 </div>
-                <div className="mb-2">
-                  <div className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Level</div>
-                  <div className={`font-bold text-[11px] truncate ${isTurn ? 'text-indigo-200' : 'text-slate-500'}`} title={level.name}>{level.name}</div>
+                
+                <div className="flex-1 flex flex-col justify-center mb-1.5">
+                  <div className="text-[8px] sm:text-[9px] text-slate-500 uppercase font-black tracking-widest mb-0.5 shadow-sm">Current Title</div>
+                  <div className={`font-extrabold text-[10px] sm:text-[11px] truncate ${isTurn ? playersConfig[p.id].text : 'text-slate-400'}`} title={level.name}>{level.name}</div>
                 </div>
-                <div className="w-full bg-slate-900 rounded-full h-1.5 mb-1.5 shadow-inner">
-                  <div className={`h-1.5 rounded-full ${playersConfig[p.id].color}`} style={{ width: `${(p.step / 57) * 100}%` }}></div>
+                
+                <div className="mt-auto">
+                  <div className="w-full bg-slate-900/80 rounded-full h-1.5 mb-1 shadow-inner border border-slate-700/50 overflow-hidden">
+                    <div className={`h-full rounded-full ${playersConfig[p.id].color} transition-all duration-1000 ease-out relative`} style={{ width: `${(p.step / 57) * 100}%` }}>
+                      <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div className={`text-[9px] sm:text-[10px] text-right font-black ${isTurn ? 'text-slate-200' : 'text-slate-600'} tracking-wider`}>
+                    {p.step} <span className="text-[7px] sm:text-[8px] text-slate-500 font-bold">/ 57 STEPS</span>
+                  </div>
                 </div>
-                <div className={`text-[10px] text-right font-black ${isTurn ? 'text-slate-300' : 'text-slate-600'}`}>{p.step} / 57</div>
               </div>
             )
           })}
-        </div>
-
-        {/* Current Player Benefits */}
-        <div className="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700/50 text-white p-4 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] mt-auto flex-1 flex flex-col min-h-0">
-          <div className="flex items-center gap-3 mb-4 shrink-0 border-b border-slate-700/50 pb-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${playersConfig[turn].color} border border-white/20`}>
-              {getRoleIcon(getLevel(players[turn].step).role, "w-5 h-5 text-white drop-shadow-md")}
-            </div>
-            <div>
-              <h2 className="text-[10px] font-black text-amber-500/80 uppercase tracking-widest leading-none mb-1 shadow-sm">{playersConfig[turn].name}'s Turn</h2>
-              <div className="text-sm font-bold flex items-center gap-2 text-indigo-100">
-                {getLevel(players[turn].step).role} Active Benefits
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 relative overflow-y-auto pr-1 flex-1 thin-scrollbar">
-            {getLevel(players[turn].step).benefits.map((b, i) => (
-              <div
-                key={`${players[turn].step}-${i}`}
-                className="relative flex"
-                onMouseEnter={() => setHoveredBenefit(b)}
-                onMouseLeave={() => setHoveredBenefit(null)}
-              >
-                <div className="flex-1 flex items-center gap-2 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50 cursor-help hover:bg-slate-700 hover:border-indigo-500/30 transition-all shadow-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse"></div>
-                  <span className="text-[11px] font-semibold text-slate-200 leading-tight flex-1 drop-shadow-sm">{b}</span>
-                  <Info className="w-3.5 h-3.5 text-indigo-400/50 shrink-0" />
-                </div>
-                {hoveredBenefit === b && (
-                  <div className="fixed z-50 transform -translate-y-full mt-[-8px] w-64 bg-slate-900 text-indigo-100 text-[11px] p-3 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] border border-indigo-500/50 pointer-events-none">
-                    <p className="font-semibold leading-relaxed">{benefitDescriptions[b]}</p>
-                    <div className="absolute -bottom-1.5 left-6 w-3 h-3 bg-slate-900 border-b border-r border-indigo-500/50 transform rotate-45"></div>
-                  </div>
-                )}
-              </div>
-            ))}
-            {getLevel(players[turn].step).benefits.length === 0 && (
-              <div className="text-amber-500/80 italic text-sm text-center py-6 font-medium w-full col-span-2">
-                Roll the dice to start your journey!
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
