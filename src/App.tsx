@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, Trophy, Users, Briefcase, Award, Dices, Info, RotateCcw, User, TrendingUp, Building, Building2, Crown, X, HelpCircle, Map } from 'lucide-react';
+import { Star, Trophy, Users, Briefcase, Award, Dices, Info, RotateCcw, User, TrendingUp, Building, Building2, Crown, X, HelpCircle, Map, Volume2, VolumeX } from 'lucide-react';
+
+let sharedAudioCtx: AudioContext | null = null;
+const getAudioCtx = () => {
+  if (!sharedAudioCtx && typeof window !== 'undefined') {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextClass) sharedAudioCtx = new AudioContextClass();
+  }
+  return sharedAudioCtx;
+};
 
 const perimeter_coords = [
   [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
@@ -179,6 +188,7 @@ const getCellClass = (r: number, c: number) => {
 }
 
 export default function App() {
+  const [isMuted, setIsMuted] = useState(false);
   const [players, setPlayers] = useState([
     { id: 0, step: 0 },
     { id: 1, step: 0 },
@@ -200,6 +210,77 @@ export default function App() {
   const [clubMilestone, setClubMilestone] = useState<{ id: number, club: string } | null>(null);
 
   const [scale, setScale] = useState(1);
+
+  const playSound = useCallback((type: 'roll' | 'move' | 'levelUp' | 'club') => {
+    if (isMuted) return;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const t = ctx.currentTime;
+    const playMagicTone = (freq: number, dur: number, vol: number, startTimeOffset: number, sweep: boolean = false) => {
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc1.type = 'sine';
+      osc2.type = 'triangle';
+      
+      osc1.frequency.setValueAtTime(freq, t + startTimeOffset);
+      osc2.frequency.setValueAtTime(freq * 2.01, t + startTimeOffset); // slightly detuned octave
+      
+      if (sweep) {
+        osc1.frequency.exponentialRampToValueAtTime(freq * 1.5, t + startTimeOffset + dur);
+      }
+      
+      gainNode.gain.setValueAtTime(0.001, t + startTimeOffset);
+      gainNode.gain.exponentialRampToValueAtTime(vol, t + startTimeOffset + (dur * 0.1));
+      gainNode.gain.exponentialRampToValueAtTime(0.001, t + startTimeOffset + dur);
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start(t + startTimeOffset);
+      osc2.start(t + startTimeOffset);
+      osc1.stop(t + startTimeOffset + dur);
+      osc2.stop(t + startTimeOffset + dur);
+    };
+
+    const playPop = (freq: number, startTimeOffset: number, dur: number = 0.1) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + startTimeOffset);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.8, t + startTimeOffset + dur); 
+      
+      gainNode.gain.setValueAtTime(0.001, t + startTimeOffset);
+      gainNode.gain.exponentialRampToValueAtTime(0.15, t + startTimeOffset + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, t + startTimeOffset + dur);
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.start(t + startTimeOffset);
+      osc.stop(t + startTimeOffset + dur);
+    };
+
+    if (type === 'roll') {
+      playPop(400 + Math.random() * 200, 0, 0.08); // Subtle, softer pop
+    } else if (type === 'move') {
+      playPop(800, 0, 0.1); 
+      playPop(1200, 0.05, 0.1); // Bright magical 'tink'
+    } else if (type === 'levelUp') {
+      // Golden harp glissando
+      [440, 554.37, 659.25, 880].forEach((freq, i) => {
+        playMagicTone(freq, 0.8, 0.12, i * 0.12, false);
+      });
+    } else if (type === 'club') {
+      // Rich triumphant sweep
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        playMagicTone(freq, 1.2, 0.12, i * 0.1, i === 3);
+      });
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -244,6 +325,7 @@ export default function App() {
     let rolls = 0;
     const interval = setInterval(() => {
       setDiceValue(Math.floor(Math.random() * 6) + 1);
+      playSound('roll');
       rolls++;
       if (rolls > 3) { // Hyper-fast rolling duration
         clearInterval(interval);
@@ -294,10 +376,13 @@ export default function App() {
       return p;
     });
 
+    playSound('move');
+
     // Compute progression
     const oldLevel = getLevel(player.step).role;
     const newLevel = getLevel(newStep).role;
     if (oldLevel !== newLevel && newStep > 0) {
+      setTimeout(() => playSound('levelUp'), 300);
       setPromotedPlayerInfo({ id: turn, role: newLevel, step: newStep, fromRole: oldLevel });
       addLog(`🎉 ${playersConfig[turn].name} promoted to ${getLevel(newStep).name}!`);
     }
@@ -313,6 +398,7 @@ export default function App() {
 
     for (const { club, threshold } of clubThresholds) {
       if (player.step < threshold && newStep >= threshold) {
+        setTimeout(() => playSound('club'), oldLevel !== newLevel ? 1500 : 300);
         setClubMilestone({ id: turn, club });
       }
     }
@@ -761,6 +847,13 @@ export default function App() {
             <p className="text-xs text-indigo-200/80 uppercase tracking-widest font-medium">Race to become the Master Agency Leader!</p>
           </div>
           <div className="flex gap-1">
+            <button
+              onClick={() => setIsMuted(m => !m)}
+              className={`p-2 rounded-lg transition-colors border border-transparent hover:border-slate-700 hover:bg-slate-800/50 ${isMuted ? 'text-rose-400' : 'text-emerald-400 hover:text-emerald-300'}`}
+              title={isMuted ? "Unmute Sounds" : "Mute Sounds"}
+            >
+              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+            </button>
             <button
               onClick={() => setShowInfo(true)}
               className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-800/50 rounded-lg transition-colors border border-transparent hover:border-slate-700"
